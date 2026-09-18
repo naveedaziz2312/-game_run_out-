@@ -1,115 +1,126 @@
-const track=document.getElementById('track'), scoreEl=document.getElementById('score'), levelEl=document.getElementById('level');
-const gameOverScreen=document.getElementById('gameOver'), pauseMenu=document.getElementById('pauseMenu'), startScreen=document.getElementById('startScreen');
-let lane=1,score=0,level=1,baseSpeed=1,isOver=false,isPaused=true,isJumping=false,isStarted=false;
-let high=localStorage.getItem('naveedBest')||0;
-document.getElementById('bestInfo').innerText=high;
-const lanes=[28, 49.5, 71]; // % left position
-const player=document.createElement('div'); player.id='player'; player.innerText='🏃'; track.appendChild(player);
-function updatePlayerPos(){player.style.left=(lanes[lane]-10)+'%';}
-updatePlayerPos();
+// REAL SUBWAY BALI - By Naveed Aziz - Offline PWA
+const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
+const scoreEl=document.getElementById('score'),coinsEl=document.getElementById('coins');
+const overlay=document.getElementById('overlay'),fill=document.getElementById('fill'),loadText=document.getElementById('loadText'),playBtn=document.getElementById('playBtn');
+let W,H;function resize(){W=canvas.width=canvas.parentElement.clientWidth*2;H=canvas.height=canvas.parentElement.clientHeight*2;canvas.style.width=W/2+'px';canvas.style.height=H/2+'px'}resize();window.addEventListener('resize',resize);
 
-function move(d){
-  if(isOver||isPaused||!isStarted) return;
-  if(d==='left'&&lane>0) lane--;
-  if(d==='right'&&lane<2) lane++;
-  if(d==='up'&&!isJumping){
-    isJumping=true; player.classList.add('jump');
-    setTimeout(()=>{player.classList.remove('jump');isJumping=false;},500);
-    return;
-  }
-  updatePlayerPos();
-}
-document.addEventListener('keydown',e=>{
-  if(e.key==='ArrowLeft') move('left');
-  if(e.key==='ArrowRight') move('right');
-  if(e.key==='ArrowUp'||e.code==='Space') move('up');
-});
-let sx=0;
-track.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;},{passive:false});
-track.addEventListener('touchend',e=>{
-  let ex=e.changedTouches[0].clientX;
-  let diff=ex-sx;
-  if(diff>40) move('right');
-  else if(diff<-40) move('left');
-  else move('up');
-},{passive:false});
+let loading=0;let loader=setInterval(()=>{loading+=2;fill.style.width=loading+'%';loadText.innerText='Loading '+loading+'%';if(loading>=100){clearInterval(loader);playBtn.style.display='block';loadText.innerText='Ready!'}},30);
 
-// Speed Control
-const speedControl=document.getElementById('speedControl');
-const speedValue=document.getElementById('speedValue');
-speedControl.addEventListener('input',()=>{
-  baseSpeed=parseFloat(speedControl.value);
-  speedValue.innerText=baseSpeed+'x';
-});
+let lane=1,playerY=0,playerVY=0,jumping=false,rolling=false,rollTime=0,score=0,coins=0,speed=8,gameOver=false,playing=false;
+let obstacles=[],coinObjs=[],particles=[];
+let lastSpawn=0;
 
-function spawnObs(){
-  if(isOver||isPaused||!isStarted) return;
-  let l=Math.floor(Math.random()*3);
-  let el=document.createElement('div');
-  el.className='obstacle '+(Math.random()>0.5?'train':'barrier');
-  el.innerText=Math.random()>0.5?'🚆':'🚧';
-  el.style.left=(lanes[l]-10)+'%';
-  el.style.top='30%';
-  el.dataset.lane=l;
-  track.appendChild(el);
-  let y=30;
-  let iv=setInterval(()=>{
-    if(isPaused){return;}
-    if(isOver){clearInterval(iv);el.remove();return;}
-    y+=baseSpeed*0.8;
-    el.style.top=y+'%';
-    if(y>73&&y<84&&parseInt(el.dataset.lane)===lane&&!isJumping){endGame();}
-    if(y>100){clearInterval(iv);el.remove();}
-  },16);
+const lanes=[-120,0,120]; // 3 lanes x offset
+
+playBtn.onclick=startGame;
+function startGame(){overlay.style.display='none';playing=true;gameOver=false;score=0;coins=0;obstacles=[];coinObjs=[];lane=1;requestAnimationFrame(loop)}
+
+function spawn(){
+ if(Date.now()-lastSpawn<600)return;lastSpawn=Date.now();
+ let type=Math.random();
+ if(type<0.6){ // train
+   let l=Math.floor(Math.random()*3);
+   obstacles.push({lane:l,y:-600,h:120,type:'train',w:140,color:Math.random()>0.5?'#e74c3c':'#3498db'})
+ }else if(type<0.8){ // barrier
+   let l=Math.floor(Math.random()*3);
+   obstacles.push({lane:l,y:-600,h:40,type:'barrier',w:130,color:'#fff'})
+ }else{ // coin line
+   let l=Math.floor(Math.random()*3);
+   for(let i=0;i<3;i++) coinObjs.push({lane:l,y:-600-i*50})
+ }
+ // extra coins
+ if(Math.random()<0.7){
+   let l=Math.floor(Math.random()*3);
+   coinObjs.push({lane:l,y:-600})
+ }
 }
 
-function spawnCoin(){
-  if(isOver||isPaused||!isStarted) return;
-  let l=Math.floor(Math.random()*3);
-  let c=document.createElement('div'); c.className='coin'; c.innerText='💰';
-  c.style.left=(lanes[l]-5.5)+'%'; c.style.top='30%'; c.dataset.lane=l;
-  track.appendChild(c);
-  let y=30;
-  let iv=setInterval(()=>{
-    if(isPaused) return;
-    if(isOver){clearInterval(iv);c.remove();return;}
-    y+=baseSpeed*0.8;
-    c.style.top=y+'%';
-    if(y>72&&y<85&&parseInt(c.dataset.lane)===lane){score+=10;upd();c.remove();clearInterval(iv);}
-    if(y>100){clearInterval(iv);c.remove();}
-  },16);
-}
-function upd(){
-  scoreEl.innerText='💰 '+score;
-  level=Math.floor(score/150)+1;
-  levelEl.innerText='Lvl '+level;
-  document.getElementById('levelInfo').innerText=level;
-}
-function endGame(){
-  isOver=true; isStarted=false;
-  if(score>high){high=score;localStorage.setItem('naveedBest',high);}
-  document.getElementById('finalScore').innerText='Score: '+score+' | BY NAVEED AZIZ';
-  document.getElementById('highScore').innerText='Best: '+high;
-  gameOverScreen.style.display='flex';
-}
-function shareGame(){
-  const url='https://naveedaziz2312.github.io/Subway-surfers/';
-  const txt=`🏃 Subway Surfers BY NAVEED AZIZ - Mera Score ${score}! Aap bhi khelo: ${url}`;
-  if(navigator.share){navigator.share({title:'Naveed Game',text:txt,url});}
-  else{navigator.clipboard.writeText(url); alert('Link Copy Ho Gaya! '+url);}
-}
-document.getElementById('playBtn').onclick=()=>{
-  startScreen.style.display='none';
-  isPaused=false; isStarted=true; isOver=false;
-  score=0; lane=1; updatePlayerPos(); upd();
-};
-document.getElementById('restartBtn').onclick=()=>location.reload();
-document.getElementById('restartBtn2').onclick=()=>location.reload();
-document.getElementById('pauseBtn').onclick=()=>{if(!isStarted)return; isPaused=true; pauseMenu.style.display='flex';};
-document.getElementById('resumeBtn').onclick=()=>{isPaused=false; pauseMenu.style.display='none';};
-document.getElementById('shareBtn').onclick=shareGame;
-document.getElementById('shareBtn2').onclick=shareGame;
+function loop(){
+ if(!playing)return;
+ ctx.clearRect(0,0,W,H);
+ // Background - Bali
+ ctx.fillStyle='#87CEEB';ctx.fillRect(0,0,W,H*0.45);
+ ctx.fillStyle='#f6d365';ctx.fillRect(0,H*0.45,W,H*0.55); // sand
+ // tracks perspective
+ ctx.strokeStyle='#555';ctx.lineWidth=4;
+ for(let i=-1;i<=1;i++){
+   let x=W/2+i*180;
+   ctx.beginPath();ctx.moveTo(x-80,H);ctx.lineTo(W/2+i*20,H*0.4);ctx.stroke();
+ }
+ // update physics
+ if(jumping){playerY+=playerVY;playerVY-=1.5;if(playerY<=0){playerY=0;jumping=false;playerVY=0}}
+ if(rolling){rollTime--;if(rollTime<=0)rolling=false}
 
-setInterval(spawnObs,1300);
-setInterval(spawnCoin,1500);
-setInterval(()=>{if(!isOver&&!isPaused&&isStarted){score+=1; upd();}},300);
+ // spawn
+ spawn();
+ speed+=0.005;
+ score+=1;scoreEl.innerText=Math.floor(score/10);
+
+ // obstacles
+ for(let i=obstacles.length-1;i>=0;i--){
+   let o=obstacles[i];o.y+=speed;
+   let ox=W/2+lanes[o.lane]* (0.5+o.y/H);
+   let oy=H*0.5+o.y*0.6;
+   let scale=0.3+ (oy/H)*0.8;
+   if(o.type==='train'){
+     ctx.fillStyle=o.color;ctx.fillRect(ox-o.w*scale/2,oy,o.w*scale,o.h*scale);
+     ctx.fillStyle='#222';ctx.fillRect(ox-o.w*scale/2,oy+10*scale,o.w*scale,8*scale);
+   }else{
+     ctx.fillStyle='#fff';ctx.fillRect(ox-o.w*scale/2,oy,o.w*scale,20*scale);
+     ctx.fillStyle='#e74c3c';ctx.fillRect(ox-o.w*scale/2,oy,20*scale,20*scale);
+     ctx.fillRect(ox+o.w*scale/2-20*scale,oy,20*scale,20*scale);
+   }
+   // collision
+   if(o.lane===lane && oy>H*0.65 && oy<H*0.85 &&!jumping &&!rolling){
+     if(!(o.type==='barrier' && rolling)) return endGame();
+   }
+   if(o.type==='barrier' && o.lane===lane && oy>H*0.65 && oy<H*0.85 &&!jumping &&!rolling) return endGame();
+   if(o.y>400){obstacles.splice(i,1)}
+ }
+ // coins
+ for(let i=coinObjs.length-1;i>=0;i--){
+   let c=coinObjs[i];c.y+=speed;
+   let cx=W/2+lanes[c.lane]* (0.5+c.y/H);
+   let cy=H*0.5+c.y*0.6;
+   let scale=0.3+ (cy/H)*0.8;
+   ctx.fillStyle='#ffcc00';ctx.strokeStyle='#ff6a00';ctx.lineWidth=3*scale;
+   ctx.beginPath();ctx.arc(cx,cy,14*scale,0,Math.PI*2);ctx.fill();ctx.stroke();
+   ctx.fillStyle='#ff6a00';ctx.font=`${12*scale}px Arial`;ctx.fillText('$',cx-4*scale,cy+4*scale);
+   if(c.lane===lane && cy>H*0.68 && cy<H*0.9){coins++;coinsEl.innerText=coins;coinObjs.splice(i,1);continue}
+   if(c.y>400)coinObjs.splice(i,1)
+ }
+ // player
+ let px=W/2+lanes[lane]*0.9;
+ let py=H*0.78+playerY;
+ ctx.fillStyle=rolling?'#ffeb3b':'#00a8ff';
+ ctx.fillRect(px-25,py-(rolling?20:50),50,rolling?20:50);
+ ctx.fillStyle='#fff';ctx.fillRect(px-15,py-45,30,15); // cap
+ if(gameOver)return;
+ requestAnimationFrame(loop);
+}
+
+function endGame(){playing=false;overlay.style.display='flex';playBtn.innerText='PLAY AGAIN';loadText.innerText='Game Over! Score: '+Math.floor(score/10);fill.style.width='100%';playBtn.style.display='block'}
+
+ // controls
+ let sx=0;canvas.addEventListener('touchstart',e=>sx=e.touches[0].clientX);
+ canvas.addEventListener('touchend',e=>{
+   let dx=e.changedTouches[0].clientX-sx;
+   let dy=e.changedTouches[0].clientY-(e.touches?0:0);
+   if(Math.abs(dx)>40){if(dx>0 && lane<2)lane++;else if(dx<0 && lane>0)lane--;}
+   else { // tap
+     if(!jumping){jumping=true;playerVY=22}
+   }
+ });
+ canvas.addEventListener('touchmove',e=>{if(e.touches[0].clientY-sx>50){rolling=true;rollTime=30}});
+ document.addEventListener('keydown',e=>{
+   if(e.key==='ArrowLeft' && lane>0)lane--;
+   if(e.key==='ArrowRight' && lane<2)lane++;
+   if(e.key===' ' &&!jumping){jumping=true;playerVY=22}
+   if(e.key==='ArrowDown'){rolling=true;rollTime=30}
+ });
+
+ // swipe down
+ let sy=0;canvas.addEventListener('touchstart',e=>sy=e.touches[0].clientY,{passive:true});
+ canvas.addEventListener('touchend',e=>{
+   if(e.changedTouches[0].clientY-sy>80){rolling=true;rollTime=40}
+ },{passive:true});
