@@ -1,53 +1,109 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <img id="trainImg" src="train.png" style="display:none">
-<img id="playerImg" src="player.png" style="display:none">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Subway Bali - By Naveed Aziz</title>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#00a8ff">
-<link rel="icon" href="icon.png">
+<title>Subway Bali REAL - Naveed Aziz</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}body{background:#87CEEB;overflow:hidden;font-family:Arial;touch-action:none}
-#game{position:relative;width:100vw;height:100dvh;max-width:480px;margin:0 auto;background:linear-gradient(#87CEEB 0%, #ffe4b5 100%);overflow:hidden}
-canvas{position:absolute;top:0;left:0;width:100%;height:100%}
-  <img id="train" src="train.png" style="display:none">
-<img id="player" src="player.png" style="display:none">
-#ui{position:absolute;top:0;width:100%;padding:10px;display:flex;justify-content:space-between;z-index:10;color:white;font-weight:bold;text-shadow:2px 2px 0 #000}
-.badge{background:rgba(0,0,0,0.6);padding:8px 14px;border-radius:20px}
-#overlay{position:absolute;inset:0;background:linear-gradient(#0f2a5a,#1a4a8a);z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;text-align:center}
-.logo{font-size:42px;font-weight:900;color:#ffcc00;-webkit-text-stroke:3px #000;text-shadow:4px 4px 0 #c0392b;line-height:0.9}
-.logo span{color:white}
-.bar{width:80%;height:22px;background:#000;border-radius:10px;margin:20px 0;overflow:hidden;border:2px solid #fff}
-#fill{height:100%;width:0%;background:linear-gradient(90deg,#ff6a00,#ffcc00);transition:width 0.2s}
-button{padding:16px 40px;border:none;border-radius:30px;font-size:20px;font-weight:900;background:#ffcc00;color:#000;box-shadow:0 4px 0 #c0392b;margin-top:20px}
-#installBtn{background:white;display:none}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;overflow:hidden}
+#game{width:100vw;height:100dvh;max-width:480px;margin:0 auto;position:relative;background:#ffdd7a;overflow:hidden}
+canvas{width:100%;height:100%;display:block}
+#ui{position:absolute;top:0;left:0;width:100%;display:flex;justify-content:space-between;padding:12px;z-index:10}
+.badge{background:#222;color:#fff;padding:8px 16px;border-radius:25px;font-weight:900}
+#overlay{position:absolute;inset:0;background:linear-gradient(#0d2a5e,#1e5fd6);z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;text-align:center}
+.logo{font-size:50px;font-weight:900;color:#ffcc00;-webkit-text-stroke:3px #000;line-height:0.9}
+button{background:#ffcc00;border:4px solid #000;padding:16px 40px;border-radius:30px;font-weight:900;font-size:22px;margin-top:20px}
 </style>
 </head>
 <body>
 <div id="game">
-<div id="ui"><div class="badge">💰 <span id="coins">0</span></div><div class="badge">🏃 <span id="score">0</span></div></div>
+<div id="ui"><div class="badge">💰 <span id="coin">0</span></div><div class="badge">⭐ <span id="score">0</span></div></div>
 <canvas id="c"></canvas>
 <div id="overlay">
-<div class="logo">SUBWAY<br><span>SURFERS</span><br><div style="font-size:22px;color:#ff6a00;margin-top:5px">BALI</div></div>
-<div class="bar"><div id="fill"></div></div>
-<div id="loadText">Loading 0%</div>
-<h3 style="margin-top:10px">BY NAVEED AZIZ</h3>
-<button id="playBtn" style="display:none">PRESS TO PLAY</button>
-<button id="installBtn">INSTALL GAME - OFFLINE</button>
-<p style="margin-top:15px;font-size:12px;opacity:0.8">Swipe Left/Right • Tap to Jump • Swipe Down to Roll<br>Offline chalegi - Net nahi lagega!</p>
+<div class="logo">SUBWAY<br>SURFERS<br><span style="font-size:20px;color:#fff;-webkit-text-stroke:0">BALI REAL</span></div>
+<p style="margin-top:10px">BY NAVEED AZIZ</p>
+<button id="play">PLAY REAL GAME</button>
+<p style="font-size:11px;margin-top:10px">Offline - Swipe L/R, Up Jump, Down Roll</p>
 </div>
 </div>
-<script src="script.js"></script>
+
 <script>
-let deferredPrompt;const installBtn=document.getElementById('installBtn');
-window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;installBtn.style.display='block'});
-installBtn.addEventListener('click',async()=>{if(deferredPrompt){deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;installBtn.style.display='none'}});
-if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js')}
+const can=document.getElementById('c'),ctx=can.getContext('2d');
+let W,H;function resize(){W=can.width=innerWidth*2;H=can.height=innerHeight*2;can.style.width=innerWidth+'px';can.style.height=innerHeight+'px'}resize();
+addEventListener('resize',resize);
+const trainImg=new Image();trainImg.src='train.png';
+const playerImg=new Image();playerImg.src='player.png';
+const coinEl=document.getElementById('coin'),scoreEl=document.getElementById('score'),overlay=document.getElementById('overlay'),playBtn=document.getElementById('play');
+let lane=1,py=0,vy=0,isJump=false,isRoll=false,rollT=0,score=0,coins=0,speed=12,playing=false,obs=[],coinz=[],last=0,offset=0;
+playBtn.onclick=()=>{overlay.style.display='none';playing=true;score=0;coins=0;obs=[];coinz=[];lane=1;offset=0;loop()};
+function spawn(){if(Date.now()-last<550)return;last=Date.now();let l=Math.floor(Math.random()*3);obs.push({lane:l,y:-1200,type:Math.random()<0.7?'train':'bar'});if(Math.random()<0.9)coinz.push({lane:Math.floor(Math.random()*3),y:-1200})}
+function loop(){
+ if(!playing)return;ctx.clearRect(0,0,W,H);
+ // sky
+ ctx.fillStyle='#87CEEB';ctx.fillRect(0,0,W,H*0.42);
+ // ground
+ ctx.fillStyle='#ffdd7a';ctx.fillRect(0,H*0.42,W,H*0.58);
+ offset+=speed;
+ // tracks + rods
+ for(let t=-1;t<=1;t++){
+  let baseX=W/2+t*260;
+  ctx.strokeStyle='#333';ctx.lineWidth=6;
+  ctx.beginPath();ctx.moveTo(baseX-90,H);ctx.lineTo(W/2+t*40,H*0.42);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(baseX+90,H);ctx.lineTo(W/2+t*40+40,H*0.42);ctx.stroke();
+  for(let i=0;i<60;i++){
+   let yy=H*0.42+((i*36+offset%36)%(H*0.58));
+   let sc=0.2+(yy/H)*0.9;
+   let x1=W/2+t*260*sc-95*sc,x2=W/2+t*260*sc+95*sc;
+   ctx.fillStyle=i%2==0?'#5d4037':'#8d6e63';
+   ctx.fillRect(x1,yy,(x2-x1),13*sc);
+  }
+ }
+ spawn();speed+=0.005;score++;scoreEl.textContent=Math.floor(score/10);
+ // obstacles - REAL TRAIN IMAGE
+ for(let i=obs.length-1;i>=0;i--){
+  let o=obs[i];o.y+=speed;let oy=H*0.42+o.y*0.62;let sc=0.18+(oy/H)*0.9;let ox=W/2+o.lane*260*sc;
+  if(o.type==='train'){
+   let tw=360*sc,th=140*sc;
+   if(trainImg.complete && trainImg.naturalWidth>0){ctx.drawImage(trainImg,ox-tw/2,oy-th/2,tw,th);}
+   else{ctx.fillStyle='#2196F3';ctx.fillRect(ox-tw/2,oy-th/2,tw,th);}
+  }else{
+   ctx.fillStyle='#fff';ctx.fillRect(ox-80*sc,oy,160*sc,22*sc);
+   ctx.fillStyle='red';ctx.fillRect(ox-80*sc,oy,15*sc,22*sc);ctx.fillRect(ox+65*sc,oy,15*sc,22*sc);
+  }
+  if(o.lane===lane && oy>H*0.60 && oy<H*0.88 &&!isJump &&!(o.type==='bar'&&isRoll)){playing=false;overlay.style.display='flex';playBtn.textContent='TRY AGAIN';return;}
+  if(o.y>800)obs.splice(i,1);
+ }
+ // coins
+ for(let i=coinz.length-1;i>=0;i--){
+  let c=coinz[i];c.y+=speed;let cy=H*0.42+c.y*0.62;let sc=0.18+(cy/H)*0.9;let cx=W/2+c.lane*260*sc;
+  ctx.fillStyle='#ffcc00';ctx.beginPath();ctx.arc(cx,cy,15*sc,0,7);ctx.fill();
+  if(c.lane===lane && cy>H*0.65 && cy<H*0.90){coins++;coinEl.textContent=coins;coinz.splice(i,1);}
+  if(c.y>800)coinz.splice(i,1);
+ }
+ // player - REAL PLAYER IMAGE
+ let px=W/2+lane*240*0.88;let pY=H*0.80+py;
+ if(isJump){py+=vy;vy-=1.4;if(py>=0){py=0;isJump=false;}}
+ if(isRoll){rollT--;if(rollT<=0)isRoll=false;}
+ if(playerImg.complete && playerImg.naturalWidth>0){
+  let pw=120*(isRoll?0.8:1),ph=120*(isRoll?0.55:1);
+  ctx.drawImage(playerImg,px-pw/2,pY-ph,pw,ph);
+ }else{
+  ctx.font='60px Arial';ctx.textAlign='center';ctx.fillText(isRoll?'🧎':'🏃',px,pY);
+ }
+ // police
+ ctx.font='46px Arial';ctx.textAlign='center';ctx.fillText('👮',W/2+lane*230*0.88,H*0.94);
+ requestAnimationFrame(loop);
+}
+let sx=0,sy=0;
+can.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});
+can.addEventListener('touchend',e=>{
+ let dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;
+ if(Math.abs(dx)>35 && Math.abs(dx)>Math.abs(dy)){if(dx>0&&lane<2)lane++;else if(dx<0&&lane>0)lane--;}
+ else if(dy<-35){if(!isJump){isJump=true;vy=22;}}
+ else if(dy>40){isRoll=true;rollT=30;}
+ else{if(!isJump){isJump=true;vy=22;}}
+},{passive:true});
 </script>
 </body>
 </html>
-<img id="train" src="train.png" style="display:none">
-<img id="player" src="player.png" style="display:none">
