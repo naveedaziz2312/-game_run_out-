@@ -1,0 +1,17 @@
+{
+  "name": "Subway Surfers - By Naveed Aziz",
+  "short_name": "Naveed Game",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#ffcc00",
+  "description": "Real Subway Surfers By Naveed Aziz - Train se bacho!",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
